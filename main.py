@@ -1,16 +1,19 @@
 import sys
-import random
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, QFileDialog, QSpinBox
-from fake_useragent import UserAgent
+from fake_useragent import UserAgent, FakeUserAgentError
 
 class UserAgentGenerator(QWidget):
     def __init__(self):
         super().__init__()
-        self.ua = UserAgent()
+        try:
+            self.ua = UserAgent()
+        except FakeUserAgentError as e:
+            print(f"Ошибка при инициализации fake-useragent: {e}")
+            self.ua = None
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle('Генератор Юзер-Агентов')
+        self.setWindowTitle('User-Agent generator | tg:@w1ckedside')
         self.setGeometry(100, 100, 500, 300)
 
         layout = QVBoxLayout()
@@ -54,23 +57,48 @@ class UserAgentGenerator(QWidget):
     def generateUserAgents(self):
         quantity = self.quantitySpinBox.value()
         userAgents = []
-        for _ in range(quantity):
-            if self.osCombo.currentText() == 'Any' and self.browserCombo.currentText() == 'Any':
-                userAgents.append(self.ua.random)
-            else:
-                userAgents.append(self.generate_specific_useragent())
-        self.userAgentsText.setText('\n'.join(userAgents))
+        if self.ua:
+            for _ in range(quantity):
+                if self.osCombo.currentText() == 'Any' and self.browserCombo.currentText() == 'Any':
+                    userAgents.append(self.ua.random)
+                else:
+                    userAgent = self.generate_specific_useragent()
+                    if userAgent:
+                        userAgents.append(userAgent)
+                    else:
+                        userAgents.append("Не удалось сгенерировать юзер-агент.")
+            self.userAgentsText.setText('\n'.join(userAgents))
+        else:
+            self.userAgentsText.setText("Ошибка инициализации fake-useragent, генерация невозможна.")
 
     def generate_specific_useragent(self):
+        os_filter = self.osCombo.currentText()
         browser = self.browserCombo.currentText().lower()
         if browser == 'any':
             browser_method = 'random'
         else:
             browser_method = browser
-        try:
-            return getattr(self.ua, browser_method)
-        except:
-            return self.ua.random
+
+        for _ in range(10):  # Попытки найти подходящий юзер-агент
+            try:
+                userAgent = getattr(self.ua, browser_method)
+                if os_filter != 'Any' and self.os_in_useragent(os_filter, userAgent):
+                    return userAgent
+                elif os_filter == 'Any':
+                    return userAgent
+            except:
+                continue
+        return None
+
+    def os_in_useragent(self, os_filter, useragent):
+        """Проверяет соответствие ОС в строке юзер-агента."""
+        os_keywords = {
+            'Windows': 'Windows',
+            'macOS': 'Mac',
+            'Linux': 'Linux',
+        }
+        keyword = os_keywords.get(os_filter)
+        return keyword in useragent if keyword else False
 
     def saveToFile(self):
         options = QFileDialog.Options()
