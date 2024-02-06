@@ -1,15 +1,17 @@
 import sys
 import random
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, QFileDialog
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, QFileDialog, QSpinBox
+from fake_useragent import UserAgent
 
 class UserAgentGenerator(QWidget):
     def __init__(self):
         super().__init__()
+        self.ua = UserAgent()
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle('User-Agents generator | tg:@w1ckedside')
-        self.setGeometry(100, 100, 400, 200)
+        self.setWindowTitle('Генератор Юзер-Агентов')
+        self.setGeometry(100, 100, 500, 300)
 
         layout = QVBoxLayout()
 
@@ -17,15 +19,24 @@ class UserAgentGenerator(QWidget):
         layout.addWidget(self.osLabel)
 
         self.osCombo = QComboBox()
-        self.osCombo.addItems(['Windows', 'macOS', 'Linux'])
+        self.osCombo.addItems(['Windows', 'macOS', 'Linux', 'Any'])
         layout.addWidget(self.osCombo)
 
         self.browserLabel = QLabel('Выберите браузер:')
         layout.addWidget(self.browserLabel)
 
         self.browserCombo = QComboBox()
-        self.browserCombo.addItems(['Chrome', 'Firefox', 'Opera'])
+        self.browserCombo.addItems(['Chrome', 'Firefox', 'Opera', 'Safari', 'Internet Explorer', 'Any'])
         layout.addWidget(self.browserCombo)
+
+        self.quantityLabel = QLabel('Количество Юзер-Агентов:')
+        layout.addWidget(self.quantityLabel)
+
+        self.quantitySpinBox = QSpinBox()
+        self.quantitySpinBox.setMinimum(1)
+        self.quantitySpinBox.setMaximum(100000)
+        self.quantitySpinBox.setValue(1)
+        layout.addWidget(self.quantitySpinBox)
 
         self.generateButton = QPushButton('Генерировать Юзер-Агенты')
         self.generateButton.clicked.connect(self.generateUserAgents)
@@ -41,11 +52,25 @@ class UserAgentGenerator(QWidget):
         self.setLayout(layout)
 
     def generateUserAgents(self):
-        os = self.osCombo.currentText()
-        browser = self.browserCombo.currentText()
-        # Простой пример генерации юзер-агента, можно расширить для большей уникальности
-        userAgent = f"Mozilla/5.0 ({os}; AppleWebKit/537.36 (KHTML, like Gecko) {browser}/90.0 Safari/537.36"
-        self.userAgentsText.setText(userAgent)
+        quantity = self.quantitySpinBox.value()
+        userAgents = []
+        for _ in range(quantity):
+            if self.osCombo.currentText() == 'Any' and self.browserCombo.currentText() == 'Any':
+                userAgents.append(self.ua.random)
+            else:
+                userAgents.append(self.generate_specific_useragent())
+        self.userAgentsText.setText('\n'.join(userAgents))
+
+    def generate_specific_useragent(self):
+        browser = self.browserCombo.currentText().lower()
+        if browser == 'any':
+            browser_method = 'random'
+        else:
+            browser_method = browser
+        try:
+            return getattr(self.ua, browser_method)
+        except:
+            return self.ua.random
 
     def saveToFile(self):
         options = QFileDialog.Options()
